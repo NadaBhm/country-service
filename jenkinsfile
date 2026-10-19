@@ -6,7 +6,7 @@ pipeline {
     stages {
         stage('Checkout code') {
             steps {
-                git branch: 'master', url: 'https://github.com/NadaBhm/country-service.git'
+                git branch: 'main', url: 'https://github.com/NadaBhm/country-service.git'
             }
         }
         stage('Compile, test code, package in war file and store it in maven repo') {
