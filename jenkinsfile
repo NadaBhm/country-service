@@ -1,22 +1,17 @@
 pipeline {
     agent any
     tools {
-        maven 'M2_HOME'
+        maven 'mymaven'
     }
     stages {
         stage('Checkout code') {
             steps {
-                git branch: 'main', url: 'https://github.com/NadaBhm/country-service.git'
+                git branch: 'master', url: 'https://github.com/NadaBhm/country-service.git'
             }
         }
-        stage('Compile code') {
+        stage('Compile, test code, package in war file and store it in maven repo') {
             steps {
-                sh 'mvn compile'
-            }
-        }
-        stage('Test code') {
-            steps {
-                sh 'mvn test'
+                sh 'mvn clean install'
             }
             post {
                 success {
@@ -24,9 +19,11 @@ pipeline {
                 }
             }
         }
-        stage('Package code') {
+        stage('SonarQube Analysis') {
             steps {
-                sh 'mvn package'
+                withSonarQubeEnv(installationName: 'MySonarQubeServer', credentialsId: 'sonarqubePWD') {
+                    sh "mvn sonar:sonar -Dsonar.projectKey=country-service -Dsonar.projectName=country-service"
+                }
             }
         }
     }
