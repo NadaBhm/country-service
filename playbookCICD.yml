@@ -1,56 +1,32 @@
 ---
 - name: Build and Deploy Docker Image to Kubernetes
-  hosts: localhost # Or your build/deployment server
+  hosts: localhost
   connection: local
+
+  vars_files:
+    - vault.yml
 
   vars:
     image_name: my-country-service
     image_tag: v1
     dockerfile_path: './'
-    docker_registry_username: 
-    docker_registry_password: 
+    full_image: "{{ dockerhub_username }}/{{ image_name }}:{{ image_tag }}"
 
   tasks:
     - name: Log in to Docker Hub
-      community.general.docker_login:
-        username: "{{ docker_registry_username }}"
-        password: "{{ docker_registry_password }}" # Use environment variable for password
-        # Or use Ansible Vault for sensitive data
-        # password: "{{ docker_hub_password_from_vault }}"
-        reauthorize: yes # Re-authenticate even if credentials exist
+      command: docker login -u {{ dockerhub_username }} --password-stdin
+      args:
+        stdin: "{{ dockerhub_password }}"
+      no_log: true
 
     - name: Build Docker image
-      docker_image:
-        build:
-          path : "{{dockerfile_path }}"
-        name: "{{ docker_registry_username }}/{{ image_name }}:{{ image_tag }}"
-        source: build
-        state: present
-        tag: "{{ image_tag }}"
+      command: docker build -t {{ full_image }} {{ dockerfile_path }}
 
     - name: Push the Docker image to Docker Hub
-      docker_image:
-        name: "{{ docker_registry_username }}/{{ image_name }}:{{ image_tag }}"
-        tag: "{{ image_tag }}"
-        push: yes
-        source: local
-
-    - name: Pull Docker image (optional, for verification or on target nodes)
-      docker_image:
-        name: "{{ docker_registry_username }}/{{ image_name }}:{{ image_tag }}"
-        tag: "{{ image_tag }}"
-        source: pull
+      command: docker push {{ full_image }}
 
     - name: Apply Kubernetes Deployment
-      kubernetes.core.k8s:
-        state: present
-        namespace: jenkins
-        src: deployment.yaml
-        kubeconfig: config # Path to your kubeconfig file
+      command: kubectl --kubeconfig config apply -f deployment.yaml
 
     - name: Apply Kubernetes Service
-      kubernetes.core.k8s:
-        state: present
-        namespace: jenkins
-        src: service.yaml
-        kubeconfig: config
+      command: kubectl --kubeconfig config apply -f service.yaml
